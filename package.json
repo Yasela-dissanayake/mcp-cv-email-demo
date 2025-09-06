@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=20 <21"
+  },
   "scripts": {
     "dev": "nodemon --watch src --exec node -- --loader ts-node/esm src/index.ts",
     "build": "tsc -p .",
