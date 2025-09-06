@@ -2,33 +2,30 @@
 FROM node:20-slim AS build
 WORKDIR /app
 
-# install deps (needs package-lock.json present!)
 COPY package*.json ./
-RUN npm ci
+RUN npm ci || npm install
 
-# copy sources and build
 COPY tsconfig.json ./
 COPY src ./src
 RUN npm run build
 
-# --- Run stage: expose MCP via Supergateway (HTTP/SSE/WS) ---
+# --- Run stage ---
 FROM node:20-slim
 WORKDIR /app
 
-# Install runtime deps (NO dev deps)
+# runtime deps and supergateway (used via npx)
 COPY package*.json ./
-RUN npm ci --omit=dev
+RUN npm ci --omit=dev && npm install supergateway@latest
 
-# Install supergateway locally so it's available in PATH via npx
-RUN npm install supergateway@latest
-
-# Bring in compiled JS
+# compiled app + wrapper script
 COPY --from=build /app/dist ./dist
+COPY run.sh ./run.sh
+RUN chmod +x /app/run.sh
 
-# Env defaults (Railway will inject PORT)
+# sensible defaults; Railway will inject PORT
 ENV PORT=8080
 ENV DRY_RUN=true
 ENV ALLOWED_RECIPIENTS="you@example.com"
 
-# Start: supergateway wraps your stdio MCP server and listens on $PORT
-CMD ["npx", "supergateway", "--port", "8080", "--stdio-cmd", "node dist/index.js", "--stdio"]
+# use the wrapper; avoids ENTRYPOINT quoting headaches
+ENTRYPOINT ["/app/run.sh"]
